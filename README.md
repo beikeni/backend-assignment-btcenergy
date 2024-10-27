@@ -65,8 +65,8 @@ or a block index). Each block contains a set of transactions, each transaction a
 - Assume that the energy cost per byte is 4,56 KwH.
 - You can use the public Blockchain API from blockchain.com to retrieve information
   (https://www.blockchain.com/explorer/api/blockchain_api), for example:
-    - Latest block: https://blockchain.info/latestblock
-    - Information of blocks in a day: https://blockchain.info/blocks/$time_in_milliseconds?format=json
+    - Latest block: https://blockchain.info/latestblock 5161132480181083
+    - Information of blocks in a day: https://blockchain.info/blocks/1729867126475?format=json
     - Information of a single block: https://blockchain.info/rawblock/$block_hash
     - Information of a single transaction: https://blockchain.info/rawtx/$tx_hash
     - Information on transactions for a specific wallet address: https://blockchain.info/rawaddr/$bitcoin_address

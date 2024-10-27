@@ -10,7 +10,7 @@ provider:
   lambdaHashingVersion: 20201221
   memorySize: 256
   logRetentionInDays: 14
-  timeout: 29
+  timeout: 600
 
 plugins:
   - serverless-esbuild
