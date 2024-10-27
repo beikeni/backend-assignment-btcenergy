@@ -1,12 +1,6 @@
 import { SchemaComposer } from "graphql-compose";
-import { BlockSize, BlockSummary, Transaction, Wallet } from "./types";
-import {
-  fetchBlocksFromLast24Hours,
-  fetchRawBlock,
-  fetchWalletTransactions,
-  formatDateToYYYYMMDD,
-  storeBlockIfNotExists,
-} from "./utils";
+import { Transaction, Wallet } from "./types";
+import { fetchDailyTotalConsumption, fetchRawBlock, fetchWalletTransactions } from "./utils";
 
 const schemaComposer = new SchemaComposer();
 
@@ -23,7 +17,7 @@ const DailyTotalComnsumptionTC = schemaComposer.createObjectTC({
   name: "DailyTotalConsumption",
   fields: {
     date: "String!",
-    totalConsumption: "Float!",
+    consumption: "Float!",
   },
 });
 
@@ -55,6 +49,7 @@ const BlockTC = schemaComposer.createObjectTC({
     tx: "[Transaction!]!",
     txPowerConsumption: {
       type: "[TransactionReport!]",
+      description: "Power consumption for each individual transaction",
       resolve: (block) => block.tx,
     },
   },
@@ -73,10 +68,12 @@ const WalletTC = schemaComposer.createObjectTC({
     txs: "[Transaction]!",
     totalPowerConsumption: {
       type: "Float!",
+      description: "Total power consumption for the selected wallet",
       resolve: (wallet: Wallet) => wallet.txs.reduce((acc: number, { size }) => acc + size * 4.56, 0),
     },
     txsPowerConsumption: {
       type: "[TransactionReport!]",
+      description: "Power consumption for each individual transaction",
       resolve: (wallet) => wallet.txs,
     },
   },
@@ -105,35 +102,8 @@ schemaComposer.Query.addFields({
     type: [DailyTotalComnsumptionTC],
     args: { numberOfDays: "Int!" },
     resolve: async (_, { numberOfDays = 0 }) => {
-      if (numberOfDays < 0) throw new Error("The number of days has to be equal or greater to 0");
-
-      const dailyTotalConsumption = [];
-      const referenceTime = new Date(Date.now());
-
-      for (let day = 0; day < numberOfDays + 1; day++) {
-        referenceTime.setHours(23, 59, 59, 999);
-        const referenceTimeUnix = referenceTime.getTime();
-        const blockSummaries: BlockSummary[] = await fetchBlocksFromLast24Hours(referenceTimeUnix);
-
-        const blockPromises: Promise<BlockSize>[] = blockSummaries.map(async (block: BlockSummary) => {
-          // insert caching here
-          const storedBlock = await storeBlockIfNotExists(block);
-          return storedBlock;
-        });
-
-        const blocks: BlockSize[] = await Promise.all(blockPromises);
-        const totalConsumption = blocks.reduce((acc: number, { size }) => {
-          return acc + size * 4.56;
-        }, 0);
-
-        dailyTotalConsumption.push({
-          date: formatDateToYYYYMMDD(referenceTime),
-          totalConsumption,
-        });
-
-        referenceTime.setDate(referenceTime.getDate() - 1);
-      }
-      return dailyTotalConsumption;
+      if (numberOfDays < 0) throw new Error("The number of days has to be equal to or greater than 0");
+      return await fetchDailyTotalConsumption(numberOfDays);
     },
   },
 });

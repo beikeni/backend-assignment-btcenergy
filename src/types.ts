@@ -1,3 +1,8 @@
+export type DailyConsumption = {
+  date: string;
+  consumption: number;
+};
+
 export type BlockSummary = Pick<RawBlock, "hash" | "height" | "time" | "block_index">;
 export type BlockSize = Pick<RawBlock, "hash" | "size">;
 
