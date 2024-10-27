@@ -1,10 +1,14 @@
 import { SchemaComposer } from "graphql-compose";
-import { BlockSize, BlockSummary, RawBlock, Transaction } from "./types";
-import { fetchBlocksFromLast24Hours, fetchRawBlock, formatDateToYYYYMMDD, storeBlockIfNotExists } from "./utils";
+import { BlockSize, BlockSummary, Transaction, Wallet } from "./types";
+import {
+  fetchBlocksFromLast24Hours,
+  fetchRawBlock,
+  fetchWalletTransactions,
+  formatDateToYYYYMMDD,
+  storeBlockIfNotExists,
+} from "./utils";
 
 const schemaComposer = new SchemaComposer();
-
-const MillisecondsInADay = 86400000;
 
 const TransactionTC = schemaComposer.createObjectTC({
   name: "Transaction",
@@ -27,8 +31,14 @@ const TransactionReportTC = schemaComposer.createObjectTC({
   name: "TransactionReport",
   fields: {
     hash: "String!",
-    description: "String",
-    powerConsumption: "Float!",
+    description: {
+      type: "String",
+      resolve: () => "Value in kWh",
+    },
+    powerConsumption: {
+      type: "Float!",
+      resolve: (transaction: Transaction) => transaction.size * 4.56,
+    },
   },
 });
 
@@ -45,13 +55,29 @@ const BlockTC = schemaComposer.createObjectTC({
     tx: "[Transaction!]!",
     txPowerConsumption: {
       type: "[TransactionReport!]",
-      resolve: (block) => {
-        return block.tx.map((transaction: Transaction) => ({
-          description: "Transaction power consumption in kWh",
-          hash: transaction.hash,
-          powerConsumption: transaction.size * 4.56,
-        }));
-      },
+      resolve: (block) => block.tx,
+    },
+  },
+});
+
+const WalletTC = schemaComposer.createObjectTC({
+  name: "Wallet",
+  fields: {
+    hash160: "String!",
+    address: "String!",
+    n_tx: "Int!",
+    n_unredeemed: "Int!",
+    total_received: "Int!",
+    total_sent: "Int!",
+    final_balance: "Int!",
+    txs: "[Transaction]!",
+    totalPowerConsumption: {
+      type: "Float!",
+      resolve: (wallet: Wallet) => wallet.txs.reduce((acc: number, { size }) => acc + size * 4.56, 0),
+    },
+    txsPowerConsumption: {
+      type: "[TransactionReport!]",
+      resolve: (wallet) => wallet.txs,
     },
   },
 });
@@ -59,9 +85,7 @@ const BlockTC = schemaComposer.createObjectTC({
 schemaComposer.Query.addFields({
   block: {
     type: BlockTC,
-    args: {
-      hash: "String!",
-    },
+    args: { hash: "String!" },
     resolve: async (_, { hash }) => {
       try {
         return await fetchRawBlock(hash);
@@ -70,11 +94,16 @@ schemaComposer.Query.addFields({
       }
     },
   },
+  wallet: {
+    type: WalletTC,
+    args: { address: "String!", limit: "Int", offset: "Int" },
+    resolve: async (_, { address, limit, offset }) => {
+      return await fetchWalletTransactions(address, limit, offset);
+    },
+  },
   dailyTotalConsumption: {
     type: [DailyTotalComnsumptionTC],
-    args: {
-      numberOfDays: "Int!",
-    },
+    args: { numberOfDays: "Int!" },
     resolve: async (_, { numberOfDays = 0 }) => {
       if (numberOfDays < 0) throw new Error("The number of days has to be equal or greater to 0");
 
@@ -93,7 +122,7 @@ schemaComposer.Query.addFields({
         });
 
         const blocks: BlockSize[] = await Promise.all(blockPromises);
-        const totalConsumption = blocks.reduce((acc: number, { size }: { size: number }) => {
+        const totalConsumption = blocks.reduce((acc: number, { size }) => {
           return acc + size * 4.56;
         }, 0);
 

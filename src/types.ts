@@ -1,7 +1,3 @@
-/**
- * Block type returned from endpoint which lists all the blocks from
- * the past 24 hours
- */
 export type BlockSummary = Pick<RawBlock, "hash" | "height" | "time" | "block_index">;
 export type BlockSize = Pick<RawBlock, "hash" | "size">;
 
@@ -21,14 +17,12 @@ export type RawBlock = {
   main_chain: boolean;
   height: number;
   weight: number;
-  tx: Transaction[]; // Assuming 'tx' is an array of transactions
+  tx: Transaction[];
 };
 
 export type TransactionSize = Pick<Transaction, "hash" | "size">;
 
 export type Transaction = {
-  // Define the structure of a transaction here
-  // For example:
   hash: string;
   ver: number;
   vin_sz: number;
@@ -78,5 +72,16 @@ export type Output = {
   n: number;
   tx_index: number;
   script: string;
-  addr?: string; // Optional, as not all outputs may have an address
+  addr?: string;
+};
+
+export type Wallet = {
+  hash160: string;
+  address: string;
+  n_tx: number;
+  n_unredeemed: number;
+  total_received: number;
+  total_sent: number;
+  final_balance: number;
+  txs: Transaction[];
 };
